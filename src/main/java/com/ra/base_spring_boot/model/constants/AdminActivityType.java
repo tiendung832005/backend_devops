@@ -1,0 +1,23 @@
+package com.ra.base_spring_boot.model.constants;
+
+public enum AdminActivityType {
+    APPROVE_ARTICLE,
+    REJECT_ARTICLE,
+    DELETE_ARTICLE,
+    BAN_USER,
+    UNBAN_USER,
+    UPDATE_USER_ROLE,
+    CREATE_CATEGORY,
+    UPDATE_CATEGORY,
+    DELETE_CATEGORY,
+    UPDATE_CONTENT_FILTER,
+    MANAGE_HIGHLIGHT,
+    VIEW_ANALYTICS,
+    EXPORT_DATA,
+    MANAGE_NOTIFICATION,
+    SYSTEM_CONFIG,
+    MODERATE_COMMENT,
+    DELETE_COMMENT,
+    OTHER
+}
+

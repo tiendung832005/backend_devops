@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: base_spring_boot
+
+  datasource:
+    url: spring.datasource.url=jdbc:postgresql://postgres:5432/rikkei_prod
+    username: postgres
+    password: 123456
+
+  jooq:
+    sql-dialect: org.hibernate.dialect.MySQL8Dialect
+
+  jpa:
+    hibernate:
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: nghia120425@gmail.com
+    password: inql heyq jdjp cnis
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+google:
+  client:
+    id: 676427506716-cf73r6bs68t67bqkqno6dd28lpo500he.apps.googleusercontent.com
+    secret: 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
+
+facebook:
+  client:
+    id: 25235451099473002
+    secret: eb84a1ab1ad746ce2e11ab6b78c7e8fd
+
+jwt:
+  secret:
+    key: Ascmkkqdnmsdfrtgsyuhidj21ue120938219321ndsad
+  expired:
+    access: 864000000
