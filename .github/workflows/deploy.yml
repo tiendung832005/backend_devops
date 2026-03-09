@@ -1,7 +1,7 @@
 name: Deploy Backend to AWS
 on:
   push:
-    branches: [ main ] # Tự động chạy khi bạn push code lên branch main
+    branches: [ main, master ] # Hỗ trợ cả branch main hoặc master
 
 jobs:
   deploy:
@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up JDK 21 # Đảm bảo khớp với phiên bản Java bạn đang dùng
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
           java-version: '21'
@@ -25,8 +25,8 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "build/libs/*.jar"
-          target: "/home/ubuntu/nhom1_qac/backend/dist"
-          strip_components: 2 # Chỉ lấy file .jar, không lấy cả thư mục build/libs
+          target: "/home/ubuntu/deploy_dist"
+          strip_components: 2
 
       - name: Restart Application
         uses: appleboy/ssh-action@master
@@ -35,8 +35,17 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/ubuntu/nhom1_qac/backend/dist
-            # Tắt app cũ đang chiếm port 8080
+            mkdir -p /home/ubuntu/deploy_dist
+            cd /home/ubuntu/deploy_dist
+            
+            # Tắt app cũ đang chiếm port 8080 (nếu có)
             sudo fuser -k 8080/tcp || true
-            # Chạy app mới dưới nền (Background)
+            
+            # Chạy app mới dưới nền và lưu log vào app.log
+            # Sử dụng '&' để lệnh không bị treo GitHub Actions
             nohup java -jar *.jar > app.log 2>&1 &
+            
+            # Đợi 5 giây để app kịp khởi động rồi in log ra kiểm tra
+            sleep 5
+            echo "--- Kiểm tra log khởi động ---"
+            cat app.log | head -n 50
