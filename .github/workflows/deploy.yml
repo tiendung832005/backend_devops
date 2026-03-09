@@ -51,8 +51,8 @@ jobs:
           username: ${{ env.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/ubuntu/backend-app || exit 0
-            pkill -f 'java.*jar' || true
-            sleep 1
-            nohup java -jar *.jar </dev/null >app.log 2>&1 &
-            echo "Backend deployment started"
+            #!/bin/bash
+            cd /home/ubuntu/backend-app
+            pkill -9 -f 'java.*jar'
+            nohup java -jar *.jar &
+            disown
