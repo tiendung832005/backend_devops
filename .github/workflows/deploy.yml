@@ -24,32 +24,24 @@ jobs:
           java-version: "21"
           distribution: "temurin"
 
-      # 3. Login to Docker Hub
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # 4. Build and Push Docker Image
-      - name: Build and Push Docker Image
+      # 3. Build JAR with Gradle
+      - name: Build JAR
         run: |
-          docker build -t ${{ env.DOCKER_IMAGE }}:latest -t ${{ env.DOCKER_IMAGE }}:${{ github.sha }} .
-          docker push ${{ env.DOCKER_IMAGE }}:latest
-          docker push ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          chmod +x gradlew
+          ./gradlew clean bootJar -x test
 
-      # 5. Deploy docker-compose.yml và nginx.conf to Server
-      - name: Copy deployment files to Server
+      # 4. Deploy JAR and nginx.conf to Server
+      - name: Copy JAR and config to Server
         uses: appleboy/scp-action@master
         with:
           host: ${{ env.SERVER_HOST }}
           username: ${{ env.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,nginx.conf"
-          target: "/home/ubuntu/rikkei-app"
-          strip_components: 0
+          source: "build/libs/*.jar,nginx.conf"
+          target: "/home/ubuntu/backend-app"
+          strip_components: 2
 
-      # 6. Deploy application on Server
+      # 5. Deploy application on Server
       - name: Deploy on Server via SSH
         uses: appleboy/ssh-action@master
         with:
@@ -57,35 +49,31 @@ jobs:
           username: ${{ env.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/ubuntu/rikkei-app
+            cd /home/ubuntu/backend-app
 
-            # Pull latest Docker image
-            docker pull ${{ env.DOCKER_IMAGE }}:latest
+            # Stop old process
+            pkill -f 'java.*jar' || true
+            sleep 3
 
-            # Stop và remove containers cũ
-            docker-compose down || true
-
-            # Start services với image mới
-            docker-compose up -d
-
-            # Chờ backend khởi động
+            # Start new backend
+            nohup java -jar *.jar > app.log 2>&1 &
+            
+            # Wait for startup
             echo "Waiting for backend to start..."
-            sleep 15
+            sleep 20
 
-            # Kiểm tra trạng thái containers
-            docker-compose ps
-
-            # Kiểm tra logs
-            echo "--- Backend logs (last 30 lines) ---"
-            docker-compose logs --tail=30 backend
-
-            # Kiểm tra health
+            # Check health
             echo "--- Health check ---"
             curl -f http://localhost:8080/actuator/health || echo "Health check failed"
+            
+            # Show logs
+            echo "--- Backend logs (last 30 lines) ---"
+            tail -n 30 app.log
 
-            # Cấu hình Nginx (nếu chưa có)
+            # Configure Nginx
             if [ ! -f /etc/nginx/sites-available/rikkei ]; then
               sudo cp nginx.conf /etc/nginx/sites-available/rikkei
               sudo ln -s /etc/nginx/sites-available/rikkei /etc/nginx/sites-enabled/ || true
+              sudo mkdir -p /var/log/nginx
               sudo nginx -t && sudo systemctl reload nginx
             fi
