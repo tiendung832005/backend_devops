@@ -18,7 +18,7 @@ COPY src src
 RUN gradle clean bootJar -x test --no-daemon
 
 # Stage 2: Runtime stage
-FROM openjdk:21-jdk-slim
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 # Install curl for health checks
