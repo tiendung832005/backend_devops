@@ -28,7 +28,9 @@ jobs:
       - name: Build JAR
         run: |
           chmod +x gradlew
-          ./gradlew clean bootJar -x test
+          ./gradlew clean bootJar -x test --no-daemon --max-workers=2
+        env:
+          GRADLE_OPTS: "-Xmx2048m -XX:MaxMetaspaceSize=512m"
 
       # 4. Deploy JAR and nginx.conf to Server
       - name: Copy JAR and config to Server
