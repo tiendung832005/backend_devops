@@ -56,4 +56,3 @@ jobs:
             sleep 1
             nohup java -jar *.jar </dev/null >app.log 2>&1 &
             echo "Backend deployment started"
-            fi
