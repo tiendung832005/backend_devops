@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+.gitattributes
+README.md
+
+# Build artifacts
+build/
+target/
+bin/
+out/
+.gradle/
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Test
+**/*Test.class
+**/test-results/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~

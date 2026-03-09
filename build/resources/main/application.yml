@@ -3,12 +3,12 @@ spring:
     name: base_spring_boot
 
   datasource:
-    url: jdbc:mysql://localhost:3306/qac_project?createDatabaseIfNotExist=true
-    username: root
-    password: 12345678
+    url: jdbc:postgresql://localhost:5432/rikkei_prod
+    username: postgres
+    password: 123456
 
   jooq:
-    sql-dialect: org.hibernate.dialect.MySQL8Dialect
+    sql-dialect: org.hibernate.dialect.PostgreSQLDialect
 
   jpa:
     hibernate:

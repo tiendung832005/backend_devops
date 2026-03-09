@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: rikkei_postgres
+    environment:
+      POSTGRES_DB: rikkei_prod
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rikkei_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rikkei_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Không expose port ra ngoài - chỉ cho phép kết nối nội bộ
+    # ports:
+    #   - "5432:5432"
+
+  # Spring Boot Backend - Pull từ Docker Hub
+  backend:
+    image: ${DOCKER_IMAGE:-yourusername/rikkei-backend}:latest
+    container_name: rikkei_backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/rikkei_prod
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_PROFILES_ACTIVE: prod
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rikkei_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  rikkei_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

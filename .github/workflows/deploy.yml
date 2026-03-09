@@ -1,51 +1,91 @@
 name: Deploy Backend to AWS
 on:
   push:
-    branches: [ main, master ] # Hỗ trợ cả branch main hoặc master
+    branches: [main, master] # Hỗ trợ cả branch main hoặc master
+  workflow_dispatch: # Cho phép chạy manual
+
+env:
+  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/rikkei-backend
+  SERVER_HOST: 3.107.235.9
+  SERVER_USER: ubuntu
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      # 1. Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v3
 
+      # 2. Set up JDK 21
       - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          java-version: "21"
+          distribution: "temurin"
 
-      - name: Build with Gradle
-        run: chmod +x gradlew && ./gradlew clean bootJar -x test
+      # 3. Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Deploy to Server via SSH
+      # 4. Build and Push Docker Image
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t ${{ env.DOCKER_IMAGE }}:latest -t ${{ env.DOCKER_IMAGE }}:${{ github.sha }} .
+          docker push ${{ env.DOCKER_IMAGE }}:latest
+          docker push ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+
+      # 5. Deploy docker-compose.yml và nginx.conf to Server
+      - name: Copy deployment files to Server
         uses: appleboy/scp-action@master
         with:
-          host: 3.107.235.9
-          username: ubuntu
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "build/libs/*.jar"
-          target: "/home/ubuntu/deploy_dist"
-          strip_components: 2
+          source: "docker-compose.yml,nginx.conf"
+          target: "/home/ubuntu/rikkei-app"
+          strip_components: 0
 
-      - name: Restart Application
+      # 6. Deploy application on Server
+      - name: Deploy on Server via SSH
         uses: appleboy/ssh-action@master
         with:
-          host: 3.107.235.9
-          username: ubuntu
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            mkdir -p /home/ubuntu/deploy_dist
-            cd /home/ubuntu/deploy_dist
-            
-            # Tắt app cũ đang chiếm port 8080 (nếu có)
-            sudo fuser -k 8080/tcp || true
-            
-            # Chạy app mới dưới nền và lưu log vào app.log
-            # Sử dụng '&' để lệnh không bị treo GitHub Actions
-            nohup java -jar *.jar > app.log 2>&1 &
-            
-            # Đợi 5 giây để app kịp khởi động rồi in log ra kiểm tra
-            sleep 5
-            echo "--- Kiểm tra log khởi động ---"
-            cat app.log | head -n 50
+            cd /home/ubuntu/rikkei-app
+
+            # Pull latest Docker image
+            docker pull ${{ env.DOCKER_IMAGE }}:latest
+
+            # Stop và remove containers cũ
+            docker-compose down || true
+
+            # Start services với image mới
+            docker-compose up -d
+
+            # Chờ backend khởi động
+            echo "Waiting for backend to start..."
+            sleep 15
+
+            # Kiểm tra trạng thái containers
+            docker-compose ps
+
+            # Kiểm tra logs
+            echo "--- Backend logs (last 30 lines) ---"
+            docker-compose logs --tail=30 backend
+
+            # Kiểm tra health
+            echo "--- Health check ---"
+            curl -f http://localhost:8080/actuator/health || echo "Health check failed"
+
+            # Cấu hình Nginx (nếu chưa có)
+            if [ ! -f /etc/nginx/sites-available/rikkei ]; then
+              sudo cp nginx.conf /etc/nginx/sites-available/rikkei
+              sudo ln -s /etc/nginx/sites-available/rikkei /etc/nginx/sites-enabled/ || true
+              sudo nginx -t && sudo systemctl reload nginx
+            fi

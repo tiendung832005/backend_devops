@@ -1,0 +1,17 @@
+# Production profile - Override for Docker deployment
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/rikkei_prod
+    username: postgres
+    password: 123456
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+        show_sql: false
+
+  data:
+    redis:
+      host: redis # Nếu sau này dùng Redis container
+      port: 6379
