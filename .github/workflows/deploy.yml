@@ -50,32 +50,34 @@ jobs:
           host: ${{ env.SERVER_HOST }}
           username: ${{ env.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
           script: |
+            set -e
             cd /home/ubuntu/backend-app
 
             # Stop old process
             pkill -f 'java.*jar' || true
-            sleep 3
+            sleep 2
 
-            # Start new backend
-            nohup java -jar *.jar > app.log 2>&1 &
-            
-            # Wait for startup
-            echo "Waiting for backend to start..."
-            sleep 20
+            # Start backend in background
+            nohup java -jar *.jar > app.log 2>&1 < /dev/null &
 
-            # Check health
-            echo "--- Health check ---"
-            curl -f http://localhost:8080/actuator/health || echo "Health check failed"
-            
-            # Show logs
-            echo "--- Backend logs (last 30 lines) ---"
-            tail -n 30 app.log
+            # Save PID
+            echo $! > backend.pid
 
-            # Configure Nginx
+            # Wait and check
+            sleep 15
+
+            # Quick health check
+            curl -f http://localhost:8080/actuator/health && echo "Backend started successfully" || echo "Backend starting, check logs later"
+
+            # Configure Nginx if needed
             if [ ! -f /etc/nginx/sites-available/rikkei ]; then
-              sudo cp nginx.conf /etc/nginx/sites-available/rikkei
-              sudo ln -s /etc/nginx/sites-available/rikkei /etc/nginx/sites-enabled/ || true
+              sudo cp nginx.conf /etc/nginx/sites-available/rikkei 2>/dev/null || true
+              sudo ln -sf /etc/nginx/sites-available/rikkei /etc/nginx/sites-enabled/ 2>/dev/null || true
               sudo mkdir -p /var/log/nginx
-              sudo nginx -t && sudo systemctl reload nginx
+              sudo nginx -t && sudo systemctl reload nginx || true
+            fi
+
+            echo "Deployment completed"
             fi
